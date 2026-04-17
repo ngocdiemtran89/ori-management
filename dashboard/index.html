@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ORI Academy — Quản Lý Lớp Học</title>
+  <meta name="description" content="Hệ thống quản lý lớp học, học viên và điểm danh ORI Academy">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- LOGIN SCREEN -->
+  <div id="loginScreen" class="login-screen">
+    <div class="login-box">
+      <div class="login-header">
+        <span class="brand-icon" style="font-size:3rem; margin-bottom:10px; display:inline-block;">🎓</span>
+        <h2 style="margin:0;">ORI Academy</h2>
+        <p style="color:var(--text-muted); font-size:0.9rem; margin-top:5px;">Hệ Thống Quản Lý Đào Tạo</p>
+      </div>
+      <form id="loginForm" onsubmit="event.preventDefault(); submitLogin();">
+        <div class="form-group">
+          <label>Tên đăng nhập</label>
+          <input type="text" id="loginUsername" placeholder="Nhập tên đăng nhập..." required autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label>Mật khẩu</label>
+          <input type="password" id="loginPassword" placeholder="Nhập mật khẩu..." required>
+        </div>
+        <button type="submit" class="btn-primary" id="btnLogin" style="width:100%; padding: 12px; margin-top:10px;">
+          🔓 Đăng Nhập
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MAIN APP CONTAINER -->
+  <div id="appContainer" style="display:none; width:100%; height:100vh;">
+  
+  <!-- SIDEBAR NAV -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="brand-icon">🎓</span>
+      <h1>ORI Academy</h1>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-view="attendance" onclick="switchView('attendance')">
+        <span class="nav-icon">☀️</span>
+        <span>Hôm Nay</span>
+      </button>
+      <button class="nav-item" data-view="classes" onclick="switchView('classes')">
+        <span class="nav-icon">📚</span>
+        <span>Lớp Học</span>
+        <span class="nav-badge" id="badgeClasses">0</span>
+      </button>
+      <button class="nav-item" data-view="students" onclick="switchView('students')">
+        <span class="nav-icon">👥</span>
+        <span>Học Viên</span>
+        <span class="nav-badge" id="badgeStudents">0</span>
+      </button>
+      <button class="nav-item" data-view="leads" onclick="switchView('leads')">
+        <span class="nav-icon">🤝</span>
+        <span>Tư Vấn</span>
+        <span class="nav-badge" id="badgeLeads" style="background:var(--orange);">0</span>
+      </button>
+      <button class="nav-item" data-view="payments" onclick="switchView('payments')">
+        <span class="nav-icon">💰</span>
+        <span>Học Phí</span>
+        <span class="nav-badge alert" id="badgeDebt" style="display:none">0</span>
+      </button>
+      <button class="nav-item" data-view="transactions" onclick="switchView('transactions')">
+        <span class="nav-icon">📊</span>
+        <span>Sổ Quỹ</span>
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <div id="userProfile" style="background:var(--bg-secondary); padding:10px; border-radius:8px; margin-bottom:12px; display:flex; flex-direction:column; gap:6px;">
+        <div style="font-weight:600; font-size:0.95rem; color:var(--text-primary);" id="lblUserName">Chưa đăng nhập</div>
+        <div style="font-size:0.8rem; color:var(--text-muted);" id="lblUserRole">Role</div>
+        <button onclick="logout()" style="background:transparent; border:1px solid var(--border); border-radius:4px; padding:4px 0; color:var(--red); font-size:0.8rem; cursor:pointer; margin-top:4px;">Đăng xuất</button>
+      </div>
+
+      <button class="btn-refresh" onclick="refreshData()">
+        <span id="refreshIcon">🔄</span> Tải lại dữ liệu
+      </button>
+      <button class="btn-settings" onclick="toggleSettings()">
+        ⚙️ Cài đặt Sync
+      </button>
+      <div class="settings-panel" id="settingsPanel" style="display:none;">
+        <label>Apps Script URL:</label>
+        <input type="text" id="appsScriptUrlInput" placeholder="https://script.google.com/macros/s/...">
+        <button class="btn-save-settings" onclick="saveSettings()">💾 Lưu</button>
+      </div>
+      <div class="data-status-bar">
+        <span id="globalStatus">Chưa tải dữ liệu</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MOBILE HEADER -->
+  <header class="mobile-header">
+    <button class="hamburger" onclick="toggleSidebar()">☰</button>
+    <h1>🎓 ORI Academy</h1>
+    <button class="btn-mobile-refresh" onclick="refreshData()">🔄</button>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+    <!-- OVERLAY for mobile sidebar -->
+    <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <!-- ================== VIEW: CLASSES ================== -->
+    <section class="view" id="viewClasses">
+      <div class="view-header">
+        <div>
+          <h2>📚 Danh Sách Lớp Học</h2>
+          <p class="view-subtitle">Chọn lớp để xem danh sách học viên & điểm danh</p>
+        </div>
+        <div class="header-actions">
+          <button class="btn-primary" onclick="openAddClassModal()" style="margin-right:8px;">+ Mở Lớp Mới</button>
+          <div class="search-box">
+            <span>🔍</span>
+            <input type="text" id="searchClasses" placeholder="Tìm lớp..." oninput="filterClasses()">
+          </div>
+          <select id="filterClassStatus" onchange="filterClasses()">
+            <option value="">Tất cả trạng thái</option>
+            <option value="Đang học">Đang học</option>
+            <option value="Sắp khai giảng">Sắp khai giảng</option>
+            <option value="Đã kết thúc">Đã kết thúc</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="class-grid" id="classGrid">
+        <!-- Classes rendered by JS -->
+        <div class="empty-state">
+          <span>📡</span>
+          <p>Đang tải dữ liệu lớp học...</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================== VIEW: CLASS DETAIL ================== -->
+    <section class="view" id="viewClassDetail">
+      <div class="view-header">
+        <div style="display:flex; align-items:center;">
+          <button class="btn-back" onclick="switchView('classes')" style="margin-right:16px;">← Quay lại</button>
+          <div>
+            <h2 id="classDetailTitle">Chi tiết lớp</h2>
+            <p class="view-subtitle" id="classDetailSubtitle"></p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button class="btn-primary" onclick="openEditClassModal()" style="background:var(--blue);">⚙️ Cập nhật Lớp</button>
+        </div>
+      </div>
+
+      <!-- Class Info Card -->
+      <div class="detail-card" id="classInfoCard">
+        <!-- Rendered by JS -->
+      </div>
+
+      <!-- Tab Navigation -->
+      <div class="detail-tabs">
+        <button class="tab-btn active" data-tab="tabStudents" onclick="switchTab(this)">
+          👥 Danh sách HV (<span id="countStudents">0</span>)
+        </button>
+        <button class="tab-btn" data-tab="tabAttendance" onclick="switchTab(this)">
+          ✅ Điểm danh
+        </button>
+        <button class="tab-btn" data-tab="tabPayments" onclick="switchTab(this)">
+          💰 Học phí
+        </button>
+      </div>
+
+      <!-- Tab: Students -->
+      <div class="tab-panel active" id="tabStudents">
+        <div class="tab-panel-header">
+          <button class="btn-add-student" onclick="openAddStudentModal()">
+            ➕ Thêm học viên vào lớp
+          </button>
+        </div>
+        <div class="student-list" id="studentList">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+
+      <!-- Tab: Attendance -->
+      <div class="tab-panel" id="tabAttendance">
+        <div class="attendance-header">
+          <div class="attendance-date-picker">
+            <label>📅 Ngày điểm danh:</label>
+            <input type="date" id="attendanceDate">
+            <button class="btn-today" onclick="setToday()">Hôm nay</button>
+          </div>
+          <button class="btn-primary" onclick="createAttendanceForClass()">
+            ✅ Điểm danh cả lớp
+          </button>
+        </div>
+        <div class="attendance-list" id="attendanceList">
+          <!-- Rendered by JS -->
+        </div>
+        <div class="attendance-history">
+          <h4>📋 Lịch sử điểm danh gần đây</h4>
+          <div id="attendanceHistory">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Payments -->
+      <div class="tab-panel" id="tabPayments">
+        <div class="payment-summary" id="paymentSummary">
+          <!-- Rendered by JS -->
+        </div>
+        <div class="payment-list" id="paymentList">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ================== VIEW: ALL STUDENTS ================== -->
+    <section class="view" id="viewStudents">
+      <div class="view-header">
+        <div>
+          <h2>👥 Tất Cả Học Viên</h2>
+          <p class="view-subtitle">Danh sách toàn bộ học viên đang học</p>
+        </div>
+        <div class="header-actions">
+          <button class="btn-primary" onclick="openAddGlobalStudentModal()" style="margin-right:8px;">+ Thêm Học Viên</button>
+          <div class="search-box">
+            <span>🔍</span>
+            <input type="text" id="searchStudents" placeholder="Tìm tên hoặc SĐT..." oninput="filterStudents()">
+          </div>
+        </div>
+      </div>
+      <div class="student-table-wrapper">
+        <table class="data-table" id="allStudentsTable">
+          <thead>
+            <tr>
+              <th>Mã HV</th>
+              <th>Họ Tên</th>
+              <th>SĐT</th>
+              <th>Phân loại</th>
+              <th>Lớp</th>
+              <th>Còn nợ</th>
+            </tr>
+          </thead>
+          <tbody id="allStudentsBody">
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ================== VIEW: LEADS ================== -->
+    <section class="view" id="viewLeads">
+      <div class="view-header">
+        <div>
+          <h2>🤝 Khách Tiềm Năng</h2>
+          <p class="view-subtitle">Quản lý danh sách khách hàng đang tư vấn và chờ xếp lớp</p>
+        </div>
+        <div class="header-actions">
+          <button class="btn-primary" onclick="openAddLeadModal()">+ Thêm Khách Mới</button>
+        </div>
+      </div>
+      <div class="table-filters" style="margin-bottom: 16px; display:flex; gap:16px;">
+        <select id="filterLeadStatus" onchange="renderLeadsList()" style="padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--bg-card); color:var(--text-primary);">
+          <option value="Đang chăm sóc">⏳ Đang chăm sóc</option>
+          <option value="Đã chốt">✅ Đã chốt</option>
+          <option value="Hủy">❌ Hủy</option>
+          <option value="">Tất cả trạng thái</option>
+        </select>
+        <div class="search-box" style="margin-left:auto;">
+          <span>🔍</span>
+          <input type="text" id="searchLeads" placeholder="Tìm SĐT hoặc Tên..." oninput="renderLeadsList()">
+        </div>
+      </div>
+      <div class="class-grid" id="leadsGrid">
+        <!-- Leads rendered by JS -->
+      </div>
+    </section>
+
+    <!-- ================== VIEW: HOME / ATTENDANCE ================== -->
+    <section class="view active" id="viewAttendance">
+      <div class="view-header">
+        <div>
+          <h2>☀️ Tổng Quan Hôm Nay</h2>
+          <p class="view-subtitle">Theo dõi tình hình hoạt động của trung tâm</p>
+        </div>
+      </div>
+      <div id="homeStatCards" class="stat-cards" style="margin-bottom: 24px;">
+        <!-- Stats populated by JS -->
+      </div>
+      <div class="quick-attendance">
+        <div style="margin-bottom:12px;">
+          <h3 style="font-size:1.1rem; color:var(--text-primary);">✅ Lớp học hôm nay</h3>
+        </div>
+        <div class="qa-date">
+          <span class="qa-label">📅 Ngày:</span>
+          <span class="qa-today" id="qaToday"></span>
+        </div>
+        <div class="qa-class-list" id="qaClassList">
+          <!-- Quick class buttons rendered by JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ================== VIEW: PAYMENTS OVERVIEW ================== -->
+    <section class="view" id="viewPayments">
+      <div class="view-header">
+        <div>
+          <h2>💰 Tổng Quan Học Phí</h2>
+          <p class="view-subtitle">Theo dõi tình hình thanh toán toàn trung tâm</p>
+        </div>
+      </div>
+      <div class="payment-dashboard">
+        <div class="stat-cards" id="paymentStatCards">
+          <!-- Stats rendered by JS -->
+        </div>
+        <div class="debt-list-wrapper">
+          <h3>🚨 Học viên còn nợ</h3>
+          <div class="debt-list" id="debtList">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================== VIEW: TRANSACTIONS (SỔ QUỸ) ================== -->
+    <section class="view" id="viewTransactions">
+      <div class="view-header">
+        <div>
+          <h2>📊 Nhật Ký Giao Dịch (Sổ Quỹ)</h2>
+          <p class="view-subtitle">Kiểm soát dòng tiền thu/chi theo thời gian thực</p>
+        </div>
+      </div>
+      <div class="table-responsive" style="background:var(--bg-card); border-radius:var(--radius); border:1px solid var(--border); padding:16px;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Mã GD</th>
+              <th>Thời gian</th>
+              <th>Học Viên</th>
+              <th>Lớp</th>
+              <th>Số tiền</th>
+              <th>Hình thức</th>
+              <th>Ghi chú</th>
+            </tr>
+          </thead>
+          <tbody id="transactionListBody">
+            <!-- Rendered by JS -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- MODAL: ADD STUDENT -->
+  <div class="modal-overlay" id="modalAddStudent" onclick="closeModalOnOverlay(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>➕ Thêm học viên vào lớp <span id="modalClassName"></span></h3>
+        <button class="modal-close" onclick="closeAddStudentModal()">✕</button>
+      </div>
+
+      <!-- Mode Toggle -->
+      <div class="modal-mode-toggle">
+        <button class="mode-btn active" data-mode="existing" onclick="switchAddMode('existing')">🔍 Chọn HV có sẵn</button>
+        <button class="mode-btn" data-mode="new" onclick="switchAddMode('new')">🆕 Tạo HV mới</button>
+      </div>
+
+      <!-- Mode: Select Existing -->
+      <div class="modal-body" id="modeExisting">
+        <div class="modal-search">
+          <input type="text" id="searchExistingStudent" placeholder="Gõ tên hoặc SĐT để tìm..." oninput="searchExistingStudents()" autocomplete="off">
+        </div>
+        <div class="modal-results" id="existingStudentResults">
+          <p class="modal-hint">Gõ để tìm học viên trong hệ thống</p>
+        </div>
+      </div>
+
+      <!-- Mode: Add New -->
+      <div class="modal-body" id="modeNew" style="display:none;">
+        <div class="modal-form">
+          <!-- Trial Toggle - First, most important -->
+          <div class="trial-toggle-row">
+            <label class="trial-toggle" for="trialCheckbox">
+              <input type="checkbox" id="trialCheckbox" checked onchange="toggleTrialMode()">
+              <span class="trial-slider"></span>
+              <span class="trial-label">📝 Học thử</span>
+            </label>
+            <span class="trial-hint" id="trialHint">Không cần nhập học phí</span>
+          </div>
+
+          <div class="modal-form-row">
+            <label>Họ Tên <span class="required">*</span></label>
+            <input type="text" id="newStudentName" placeholder="Nguyễn Văn A">
+          </div>
+          <div class="modal-form-row">
+            <label>SĐT <span class="required">*</span></label>
+            <input type="text" id="newStudentPhone" placeholder="09xx xxx xxx">
+          </div>
+          <div class="modal-form-row">
+            <label>Phân loại</label>
+            <select id="newStudentType">
+              <option value="">-- Chọn --</option>
+              <option value="Cabin Crew">Cabin Crew</option>
+              <option value="TOEIC">TOEIC</option>
+              <option value="Giao tiếp">Giao tiếp</option>
+              <option value="Khác">Khác</option>
+            </select>
+          </div>
+          <div class="modal-form-row" id="feeRow" style="display:none;">
+            <label>Tổng học phí</label>
+            <input type="text" id="newStudentFee" placeholder="3,000,000" oninput="formatMoneyInput(this)">
+          </div>
+          <button class="btn-primary btn-full" onclick="addNewStudentToClass()">✅ Thêm vào lớp</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: RECORD PAYMENT -->
+  <div class="modal-overlay" id="modalPayment" onclick="closeModalOnOverlay(event)">
+    <div class="modal modal-sm" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3>💳 Thu Tiền Học Phí</h3>
+        <button class="btn-close" onclick="closePaymentModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="payment-info-box" style="background:var(--bg-card); padding:12px; border-radius:8px; margin-bottom:16px; border:1px solid var(--border);">
+          <div id="payStudentName" style="font-weight:600; font-size:1.1rem; color:var(--text-primary); margin-bottom:4px;"></div>
+          <div style="font-size:0.9rem; color:var(--text-muted);">Còn nợ: <span id="payDebtAmount" style="color:var(--red); font-weight:bold;">0đ</span></div>
+        </div>
+        
+        <input type="hidden" id="payMaDK">
+        <input type="hidden" id="payMaHV">
+        
+        <div class="form-group">
+          <label>Số tiền thu (VNĐ)</label>
+          <input type="text" id="payAmount" placeholder="VD: 1,500,000" onkeyup="formatMoneyInput(this)" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label>Hình thức thanh toán</label>
+          <select id="payMethod">
+            <option value="Chuyển khoản">Chuyển khoản</option>
+            <option value="Tiền mặt">Tiền mặt</option>
+            <option value="Quẹt thẻ">Quẹt thẻ</option>
+          </select>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:20px;">
+          <button class="btn-cancel" style="flex:1;" onclick="closePaymentModal()">Hủy</button>
+          <button class="btn-primary" style="flex:1;" onclick="submitPayment()">✅ Xác nhận thu</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: EDIT STUDENT -->
+  <div class="modal-overlay" id="modalEditStudent" onclick="closeModalOnOverlay(event)">
+    <div class="modal modal-sm" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3>✏️ Sửa Thông Tin Học Viên</h3>
+        <button class="btn-close" onclick="closeEditStudentModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editStuMaHV">
+        <div class="form-group">
+          <label>Họ và Tên</label>
+          <input type="text" id="editStuName" placeholder="Tên học viên" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label>Số điện thoại</label>
+          <input type="text" id="editStuPhone" placeholder="SĐT học viên" autocomplete="off">
+        </div>
+        <div style="display:flex; gap:8px; margin-top:20px;">
+          <button class="btn-cancel" style="flex:1;" onclick="closeEditStudentModal()">Hủy</button>
+          <button class="btn-primary" style="flex:1;" onclick="submitEditStudent()">💾 Lưu thay đổi</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD LEAD -->
+  <div class="modal-overlay" id="modalAddLead" onclick="closeModalOnOverlay(event)">
+    <div class="modal modal-sm" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3>🤝 Thêm Khách Tiềm Năng Mới</h3>
+        <button class="btn-close" onclick="closeAddLeadModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Họ Tên Khách Hàng</label>
+          <input type="text" id="newLeadName" placeholder="Tên khách hàng...">
+        </div>
+        <div class="form-group">
+          <label>Số Điện Thoại <span style="color:var(--red);">*</span></label>
+          <input type="text" id="newLeadPhone" placeholder="SĐT khách hàng..." style="font-size: 1.1rem; padding: 10px;">
+        </div>
+        <div class="form-group">
+          <label>Căn cước công dân (CCCD)</label>
+          <input type="text" id="newLeadCCCD" placeholder="Số CCCD...">
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="newLeadEmail" placeholder="Email khách hàng...">
+        </div>
+        <div class="form-group">
+          <label>Nhu cầu học / Ghi chú</label>
+          <input type="text" id="newLeadNeed" placeholder="VD: TOEIC 600, Giao tiếp...">
+        </div>
+        <div class="form-group">
+          <label>Phân loại (Nguồn)</label>
+          <select id="newLeadSource">
+            <option value="Facebook">Facebook</option>
+            <option value="Tiktok">Tiktok</option>
+            <option value="Giới thiệu">Giới thiệu</option>
+            <option value="Khác">Khác</option>
+          </select>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:20px;">
+          <button class="btn-cancel" style="flex:1;" onclick="closeAddLeadModal()">Hủy</button>
+          <button class="btn-primary" style="flex:1;" onclick="submitAddLead()">✅ Lưu Khách Mới</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD CLASS -->
+  <div class="modal-overlay" id="modalAddClass" onclick="closeModalOnOverlay(event)">
+    <div class="modal modal-sm" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3>📚 Mở Lớp Học Mới</h3>
+        <button class="btn-close" onclick="closeAddClassModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Mã Lớp Học</label>
+          <input type="text" id="newClassId" placeholder="VD: TOEIC101, CB24...">
+        </div>
+        <div class="form-group">
+          <label>Khóa Học (Mã KH)</label>
+          <select id="newClassCourseId">
+            <!-- Rendered by JS based on khoaHoc data -->
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Giáo Viên</label>
+          <input type="text" id="newClassTeacher" placeholder="Tên Giáo Viên...">
+        </div>
+        <div class="form-group">
+          <label>Ngày Khai Giảng</label>
+          <input type="date" id="newClassDate" placeholder="dd/mm/yyyy">
+        </div>
+        <div style="display:flex; gap:8px; margin-top:20px;">
+          <button class="btn-cancel" style="flex:1;" onclick="closeAddClassModal()">Hủy</button>
+          <button class="btn-primary" style="flex:1;" onclick="submitAddClass()">💾 Mở Lớp</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD GLOBAL STUDENT -->
+  <div class="modal-overlay" id="modalAddGlobalStudent" onclick="closeModalOnOverlay(event)">
+    <div class="modal modal-sm" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3>👤 Thêm Học Viên Profile Mới</h3>
+        <button class="btn-close" onclick="closeAddGlobalStudentModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Họ và Tên</label>
+          <input type="text" id="globalStuName" placeholder="Tên học viên...">
+        </div>
+        <div class="form-group">
+          <label>Số Điện Thoại</label>
+          <input type="text" id="globalStuPhone" placeholder="SĐT học viên...">
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="globalStuEmail" placeholder="Email...">
+        </div>
+        <div style="display:flex; gap:8px; margin-top:20px;">
+          <button class="btn-cancel" style="flex:1;" onclick="closeAddGlobalStudentModal()">Hủy</button>
+          <button class="btn-primary" style="flex:1;" onclick="submitAddGlobalStudent()">💾 Lưu Hồ Sơ Mới</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: STUDENT PROFILE 360 -->
+  <div class="modal-overlay" id="modalStudentProfile" onclick="closeModalOnOverlay(event)">
+    <div class="modal modal-md" onclick="event.stopPropagation()" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3>👤 Hồ Sơ Học Viên 360°</h3>
+        <button class="btn-close" onclick="closeStudentProfileModal()">×</button>
+      </div>
+      <div class="modal-body" id="studentProfileContent">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: EDIT CLASS STATUS -->
+  <div class="modal-overlay" id="modalEditClass" onclick="closeModalOnOverlay(event)">
+    <div class="modal modal-sm" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3>⚙️ Cập Nhật Lớp Học</h3>
+        <button class="btn-close" onclick="closeEditClassModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Cập nhật Giáo viên</label>
+          <input type="text" id="editClassTeacher" placeholder="Tên Giáo Viên...">
+        </div>
+        <div class="form-group">
+          <label>Trạng thái</label>
+          <select id="editClassStatus">
+            <option value="Sắp khai giảng">Sắp khai giảng</option>
+            <option value="Đang học">Đang học</option>
+            <option value="Đã kết thúc">Đã kết thúc</option>
+          </select>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:20px;">
+          <button class="btn-cancel" style="flex:1;" onclick="closeEditClassModal()">Hủy</button>
+          <button class="btn-primary" style="flex:1;" onclick="submitEditClass()">💾 Lưu Cập Nhật</button>
+        </div>
+      </div>
+    </div>
+  </div>
+    </div>
+  </div>
+
+  </div> <!-- End #appContainer -->
+
+  <!-- TOAST -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
