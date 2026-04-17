@@ -139,6 +139,30 @@ function logout() {
   window.location.reload();
 }
 
+function toggleLoginSettings() {
+  const panel = document.getElementById('loginSettingsPanel');
+  if (panel) {
+    if (panel.style.display === 'none') {
+      panel.style.display = 'block';
+      document.getElementById('loginAppsScriptUrlInput').value = localStorage.getItem('ori_apps_script_url') || '';
+    } else {
+      panel.style.display = 'none';
+    }
+  }
+}
+
+function saveLoginSettings() {
+  const url = document.getElementById('loginAppsScriptUrlInput').value.trim();
+  if (url && url.startsWith('https://script.google.com/')) {
+    localStorage.setItem('ori_apps_script_url', url);
+    APPS_SCRIPT_URL = url;
+    document.getElementById('loginSettingsPanel').style.display = 'none';
+    showToast('✅ Đã lưu cấu hình kết nối mới', 'success');
+  } else {
+    showToast('❌ URL không hợp lệ! Vui lòng nhập link Apps Script.', 'error');
+  }
+}
+
 function applyRolePermissions(role) {
   const isGiaoVien = role === 'GiaoVien';
   const isLeTan = role === 'LeTan';

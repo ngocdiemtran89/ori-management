@@ -32,6 +32,16 @@
           🔓 Đăng Nhập
         </button>
       </form>
+
+      <!-- APPS SCRIPT URL FALLBACK FOR LOGIN -->
+      <div style="margin-top: 30px; padding-top: 20px; border-top: 1px dashed var(--border);">
+        <button class="btn-settings" onclick="toggleLoginSettings()" style="width:100%; background:transparent; color:var(--text-muted); cursor:pointer; border:none;">⚙️ Cài đặt kết nối Hệ thống (Apps Script)</button>
+        <div id="loginSettingsPanel" style="display:none; text-align:left; margin-top:10px;">
+          <label style="font-size:0.8rem; color:var(--text-muted);">Apps Script Web App URL:</label>
+          <input type="text" id="loginAppsScriptUrlInput" placeholder="https://script.google.com/macros/s/..." style="width:100%; padding:8px; margin-top:4px; font-size:0.8rem;">
+          <button onclick="saveLoginSettings()" style="width:100%; padding:8px; margin-top:8px; background:var(--blue); color:white; border:none; border-radius:4px; cursor:pointer;">💾 Lưu URL</button>
+        </div>
+      </div>
     </div>
   </div>
 
