@@ -3,7 +3,7 @@
 // Connects to Google Sheets for live data
 // ==========================================
 
-const SHEET_ID = '19hkkfwrK0elsf6p0WGpyesbA-lexQqHI81nPXkq4GAg';
+const SHEET_ID = '10b_S4lMKM6PJRfRo97FR-Gqn3qTPaC7Z1yqX3vdxPjk';
 
 // ===== DATA STORES =====
 let data = {
@@ -18,9 +18,11 @@ let data = {
 
 let currentClassId = null;
 
-// Apps Script Web App URL — Đã cấu hình sẵn
+// Apps Script Web App URL — Đã cấu hình sẵn (ưu tiên URL hardcode, bỏ qua localStorage cũ)
 const DEFAULT_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwUTmVXpRkSh0Q-bee_TYmXfR8NIpDq5FTI_U5M_swj9neFNqbg1e9Ev4rwWESls2YG/exec';
-let APPS_SCRIPT_URL = localStorage.getItem('ori_apps_script_url') || DEFAULT_APPS_SCRIPT_URL;
+// Always use hardcoded URL — clear any stale localStorage value
+localStorage.setItem('ori_apps_script_url', DEFAULT_APPS_SCRIPT_URL);
+let APPS_SCRIPT_URL = DEFAULT_APPS_SCRIPT_URL;
 
 // ===== SYNC TO GOOGLE SHEET =====
 async function syncToSheet(payload) {
