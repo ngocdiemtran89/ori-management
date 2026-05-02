@@ -18,9 +18,9 @@ let data = {
 
 let currentClassId = null;
 
-// Apps Script Web App URL — Cần cập nhật sau khi deploy Apps Script
-// Để trống = chỉ lưu local, không sync lên Sheet
-let APPS_SCRIPT_URL = localStorage.getItem('ori_apps_script_url') || '';
+// Apps Script Web App URL — Đã cấu hình sẵn
+const DEFAULT_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwUTmVXpRkSh0Q-bee_TYmXfR8NIpDq5FTI_U5M_swj9neFNqbg1e9Ev4rwWESls2YG/exec';
+let APPS_SCRIPT_URL = localStorage.getItem('ori_apps_script_url') || DEFAULT_APPS_SCRIPT_URL;
 
 // ===== SYNC TO GOOGLE SHEET =====
 async function syncToSheet(payload) {
