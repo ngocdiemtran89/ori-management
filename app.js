@@ -18,10 +18,13 @@ let data = {
 
 let currentClassId = null;
 
-// Apps Script Web App URL — Đã cấu hình sẵn (ưu tiên URL hardcode, bỏ qua localStorage cũ)
+// Apps Script Web App URL — HARDCODED (không đọc từ localStorage)
 const DEFAULT_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwUTmVXpRkSh0Q-bee_TYmXfR8NIpDq5FTI_U5M_swj9neFNqbg1e9Ev4rwWESls2YG/exec';
-// Always use hardcoded URL — clear any stale localStorage value
-localStorage.setItem('ori_apps_script_url', DEFAULT_APPS_SCRIPT_URL);
+// Xóa key localStorage cũ để tránh conflict
+localStorage.removeItem('ori_apps_script_url');
+localStorage.removeItem('appsScriptUrl');
+localStorage.removeItem('APPS_SCRIPT_URL');
+// Luôn dùng URL hardcode
 let APPS_SCRIPT_URL = DEFAULT_APPS_SCRIPT_URL;
 
 // ===== SYNC TO GOOGLE SHEET =====
