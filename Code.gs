@@ -562,7 +562,19 @@ function handleDashboardAPI(data) {
 
     if (action === "login") {
       var sheet = ss.getSheetByName("TaiKhoan");
-      if (!sheet) return { success: false, message: "Hệ thống chưa thiết lập TaiKhoan" };
+      if (!sheet) {
+        // Tự động tạo tab TaiKhoan với 3 tài khoản mặc định
+        sheet = ss.insertSheet("TaiKhoan");
+        sheet.appendRow(["Tên đăng nhập", "Mật khẩu", "Quyền", "Họ Tên", "Trạng thái"]);
+        var initialUsers = [
+          ["admin", "123456", "Manager", "Quản Lý ORI", "Hoạt động"],
+          ["letan", "123456", "LeTan", "Lễ Tân 1", "Hoạt động"],
+          ["giaovien", "123456", "GiaoVien", "Giáo Viên 1", "Hoạt động"]
+        ];
+        sheet.getRange(2, 1, initialUsers.length, initialUsers[0].length).setValues(initialUsers);
+        sheet.getRange("A1:E1").setFontWeight("bold").setBackground("#efefef");
+        Logger.log("✅ Đã tự động tạo TaiKhoan với 3 tài khoản mặc định.");
+      }
       var dataTK = sheet.getDataRange().getValues();
       var headers = dataTK[0];
       var userCol = headers.indexOf("Tên đăng nhập");

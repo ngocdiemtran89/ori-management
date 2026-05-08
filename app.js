@@ -102,9 +102,16 @@ function checkSession() {
   }
 }
 
+// Tài khoản mặc định (dự phòng khi Google Sheet chưa có tab TaiKhoan)
+const FALLBACK_ACCOUNTS = [
+  { username: 'admin', password: '123456', role: 'Manager', name: 'Quản Lý ORI' },
+  { username: 'letan', password: '123456', role: 'LeTan', name: 'Lễ Tân 1' },
+  { username: 'giaovien', password: '123456', role: 'GiaoVien', name: 'Giáo Viên 1' },
+];
+
 async function submitLogin() {
-  const u = document.getElementById('loginUsername').value;
-  const p = document.getElementById('loginPassword').value;
+  const u = document.getElementById('loginUsername').value.trim();
+  const p = document.getElementById('loginPassword').value.trim();
   const btn = document.getElementById('btnLogin');
   
   if (!APPS_SCRIPT_URL) {
@@ -128,10 +135,28 @@ async function submitLogin() {
       showToast(result.message, "success");
       checkSession();
     } else {
-      showToast(result.message, "error");
+      // Fallback: Nếu server báo lỗi TaiKhoan hoặc không kết nối được, dùng tài khoản mặc định
+      const fallback = FALLBACK_ACCOUNTS.find(a => a.username === u && a.password === p);
+      if (fallback && (result.message || '').includes('TaiKhoan')) {
+        localStorage.setItem('ori_user_role', fallback.role);
+        localStorage.setItem('ori_user_name', fallback.name);
+        showToast("Đăng nhập thành công (chế độ dự phòng)", "success");
+        checkSession();
+      } else {
+        showToast(result.message, "error");
+      }
     }
   } catch (err) {
-    showToast("Lỗi kết nối", "error");
+    // Fallback khi mất kết nối hoàn toàn
+    const fallback = FALLBACK_ACCOUNTS.find(a => a.username === u && a.password === p);
+    if (fallback) {
+      localStorage.setItem('ori_user_role', fallback.role);
+      localStorage.setItem('ori_user_name', fallback.name);
+      showToast("Đăng nhập offline thành công", "success");
+      checkSession();
+    } else {
+      showToast("Lỗi kết nối & sai tài khoản", "error");
+    }
   } finally {
     btn.textContent = "🔓 Đăng Nhập";
     btn.style.opacity = "1";
