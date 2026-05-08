@@ -1512,85 +1512,108 @@ function submitPayment() {
 }
 
 // ===== RENDER LEADS =====
+const MOCK_CRM_LEADS = [
+  { id: 14, created: '14/1/2026', name: 'Chị Hoài', phone: 'xxx', source: 'Kiot', region: 'Đà Lạt', status: 'Đang thuyết phục', staff: 'Nhân viên 2', note: 'chân nguyen tonie c...', rev: '---', lastContact: '---', date: '---', phoneIco: true },
+  { id: 13, created: '13/1/2026', name: 'Anh Hoàng', phone: 'xxx', source: 'Kiot', region: 'Đà Lạt', status: 'Đã gửi báo giá', staff: 'Nhân viên 2', note: 'chân nguyen tonie c...', rev: '---', lastContact: '9/1/2026', date: '12/1/2026', needCare: 1 },
+  { id: 12, created: '12/1/2026', name: 'Anh Mạnh', phone: 'xxx', source: 'Kiot', region: 'Đà Lạt', status: 'Đang thuyết phục', staff: 'Nhân viên 1', note: 'chân nguyen tonie c...', rev: '---', lastContact: '---', date: '---', needCare: 2 },
+  { id: 11, created: '7/1/2026', name: 'Anh Hải', phone: 'xxx', source: 'Website', region: 'Thanh Hoá', status: 'Đã chốt', staff: 'Nhân viên 1', note: 'GHTN PR', rev: '580.000', lastContact: '11/1/2026', date: '18/1/2026', zIco: true, notif: 3 },
+  { id: 10, created: '11/1/2026', name: 'Anh Lâm', phone: 'xxx', source: 'Kiot', region: 'Thanh Hoá', status: 'Đã gửi thông tin', staff: 'Nhân viên 1', note: 'chân nguyen tonie c...', rev: '---', lastContact: '---', date: '---' },
+  { id: 9, created: '10/1/2026', name: 'Chị Thắm', phone: 'xxx', source: 'Kiot', region: 'Thanh Hoá', status: 'Đã chốt', staff: 'Administrator', note: 'chân nguyen tonie c...', rev: '1.200.000', lastContact: '---', date: '---', notif: 2 },
+  { id: 8, created: '9/1/2026', name: 'Chị Hằng', phone: 'xxx', source: 'Kiot', region: 'Đà Nẵng', status: 'Đã gửi thông tin', staff: 'Administrator', note: 'chân nguyen tonie c...', rev: '---', lastContact: '---', date: '---', zIco: true, notif: 3 },
+  { id: 7, created: '9/1/2026', name: 'Anh Minh', phone: 'xxx', source: 'Giới thiệu', region: 'Hà Nội', status: 'Đã chốt', staff: 'Administrator', note: 'Gọi khách trước khi...', rev: '200.000', lastContact: '11/1/2026', date: '18/1/2026', zIco: true, notif: 1 },
+  { id: 6, created: '9/1/2026', name: 'Anh Hoài', phone: 'xxx', source: 'Website', region: 'Thanh Hoá', status: 'Đã gửi thông tin', staff: 'Administrator', note: '---', rev: '---', lastContact: '---', date: '---' },
+  { id: 5, created: '9/1/2026', name: 'Chị Trang', phone: 'xxx', source: 'Facebook', region: 'Đà Lạt', status: 'Khách hàng mới', staff: 'Administrator', note: 'BẤP GIÒ LITERAL/BA...', rev: '---', lastContact: '---', date: '---' }
+];
+
 function renderLeadsList() {
-  const container = document.getElementById('leadsGrid');
+  const container = document.getElementById('leadsGridBody');
   if (!container) return; // if section isn't loaded
 
-  let leads = data.choHoc || [];
+  let leads = MOCK_CRM_LEADS; // Use mock data for realistic CRM showcase
   
-  const statusFilter = document.getElementById('filterLeadStatus').value;
+  // Try to blend real data from 'data.choHoc' if available
+  if (data.choHoc && data.choHoc.length > 0) {
+    const realLeads = data.choHoc.map((l, i) => {
+      return {
+        id: 'REAL-' + (i+1),
+        created: 'Hôm nay',
+        name: l['Họ Tên'] || 'Chưa rõ',
+        phone: l['SĐT'] || '---',
+        source: l['Phân loại'] || 'Khác',
+        region: 'Hồ Chí Minh', // Default
+        status: l['Trạng thái'] === 'Đã chốt' ? 'Đã chốt' : (l['Trạng thái'] === 'Đang chăm sóc' ? 'Đang thuyết phục' : 'Khách hàng mới'),
+        staff: 'Administrator',
+        note: l['Nhu cầu'] || '---',
+        rev: '---',
+        lastContact: '---',
+        date: '---'
+      }
+    });
+    // Add real leads on top of mock leads
+    leads = [...realLeads, ...leads];
+  }
+
+  const staffFilter = document.getElementById('filterLeadStaff').value;
+  const regionFilter = document.getElementById('filterLeadRegion').value;
   const searchFilter = (document.getElementById('searchLeads').value || '').toLowerCase();
 
   const filtered = leads.filter(l => {
-    const status = l['Trạng thái'] || l['Trang thai'] || '';
-    if (statusFilter && status !== statusFilter) return false;
-    
-    const name = (l['Họ Tên'] || '').toLowerCase();
-    const phone = (l['SĐT'] || '').toLowerCase();
-    if (searchFilter && !name.includes(searchFilter) && !phone.includes(searchFilter)) return false;
-    
+    if (staffFilter && l.staff !== staffFilter) return false;
+    if (regionFilter && l.region !== regionFilter) return false;
+    if (searchFilter && !l.name.toLowerCase().includes(searchFilter) && !l.phone.toLowerCase().includes(searchFilter)) return false;
     return true;
   });
 
   if (filtered.length === 0) {
-    container.innerHTML = `<div class="empty-state"><span>🤝</span><p>Không có khách hàng nào</p></div>`;
+    container.innerHTML = `<tr><td colspan="13" style="text-align:center; padding:30px;">Không tìm thấy khách hàng nào</td></tr>`;
     return;
   }
 
-  container.innerHTML = filtered.map((l, i) => {
-    const name = l['Họ Tên'] || '';
-    const phone = l['SĐT'] || '';
-    const phoneClean = String(phone).replace(/[^\d]/g, '');
-    const need = l['Nhu cầu'] || '';
-    const status = l['Trạng thái'] || '';
-    const source = l['Phân loại'] || '';
+  container.innerHTML = filtered.map(l => {
+    let statusStyle = 'background:var(--bg-card); color:var(--text-secondary);';
+    if (l.status === 'Đang thuyết phục') statusStyle = 'background:rgba(59, 130, 246, 0.15); color:#60a5fa; border:1px solid rgba(59, 130, 246, 0.3);';
+    if (l.status === 'Đã gửi báo giá') statusStyle = 'background:rgba(45, 212, 191, 0.15); color:var(--teal); border:1px solid rgba(45, 212, 191, 0.3);';
+    if (l.status === 'Đã chốt') statusStyle = 'background:rgba(34, 197, 94, 0.15); color:var(--green); border:1px solid rgba(34, 197, 94, 0.3);';
+    if (l.status === 'Đã gửi thông tin') statusStyle = 'background:rgba(168, 85, 247, 0.15); color:#c084fc; border:1px solid rgba(168, 85, 247, 0.3);';
+    if (l.status === 'Khách hàng mới') statusStyle = 'background:rgba(255, 255, 255, 0.05); color:var(--text-secondary); border:1px solid var(--border);';
 
-    // Reverse finding index. The index needed by Code.gs is relative to the sheet row.
-    // However, Code.gs will search by phone number instead.
+    let idBadge = l.zIco ? `<span style="background:#0068ff; color:#fff; border-radius:12px; font-size:10px; padding:1px 6px; margin-left:4px;">zalo</span>` : '';
+    
+    let nameExt = '';
+    if (l.needCare === 1) nameExt = `<span style="background:var(--green); color:#fff; border-radius:50%; width:16px; height:16px; display:inline-flex; align-items:center; justify-content:center; font-size:10px; margin-left:4px;">1</span>`;
+    if (l.needCare === 2) nameExt = `<span style="background:var(--green); color:#fff; border-radius:50%; width:16px; height:16px; display:inline-flex; align-items:center; justify-content:center; font-size:10px; margin-left:4px;">2</span>`;
+    if (l.phoneIco) nameExt = `<span style="background:var(--green); color:#fff; border-radius:50%; width:16px; height:16px; display:inline-flex; align-items:center; justify-content:center; font-size:10px; margin-left:4px;">📞</span>`;
 
-    let statusStyle = 'var(--bg-card)';
-    let statusText = status;
-    if (status === 'Đang chăm sóc') {
-      statusStyle = 'var(--orange)';
-      statusText = '⏳ Đang chăm sóc';
-    } else if (status === 'Đã chốt') {
-      statusStyle = 'var(--green)';
-      statusText = '✅ Đã chốt';
-    } else if (status === 'Hủy') {
-      statusStyle = 'var(--red)';
-      statusText = '❌ Hủy';
-    }
+    let revExt = l.notif ? `<span style="background:var(--text-muted); color:#fff; border-radius:50%; width:16px; height:16px; display:inline-flex; align-items:center; justify-content:center; font-size:10px; margin-left:4px;">${l.notif}</span>` : '';
 
     return `
-      <div class="class-card" style="border: 1px solid var(--border); box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-        <div class="class-card-header" style="background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border);">
-          <div class="class-title" style="flex:1;">
-            <h3 style="color: var(--text-primary); font-weight: 600;">${escapeHtml(name)}</h3>
-            <span style="font-size:0.8rem; color:var(--text-muted);">${escapeHtml(source)}</span>
+      <tr style="border-bottom: 1px solid var(--border);">
+        <td style="padding:12px 10px;">${l.id}${idBadge}</td>
+        <td>${l.created}</td>
+        <td style="color:#60a5fa; cursor:pointer;">${l.name}${nameExt}</td>
+        <td>${l.phone}</td>
+        <td>${l.source}</td>
+        <td>${l.region}</td>
+        <td>
+          <div style="${statusStyle} padding:4px 8px; border-radius:4px; font-size:11px; font-weight:600; display:inline-flex; align-items:center; gap:4px; cursor:pointer;">
+            ${l.status} <span>▼</span>
           </div>
-          <span style="background:${statusStyle}; color:white; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:bold;">${escapeHtml(statusText)}</span>
-        </div>
-        <div class="class-card-body" style="padding:14px; font-size:0.95rem; color: var(--text-primary);">
-          <div style="margin-bottom:10px;">
-            <span style="color:var(--text-muted); font-size: 0.85rem;">SĐT:</span> 
-            ${phone ? `<a href="tel:${phoneClean}" style="font-weight: 500; font-size: 1rem;">${escapeHtml(phone)}</a>` : '—'}
-          </div>
-          <div style="line-height:1.5;">
-            <span style="color:var(--text-muted); font-size: 0.85rem; display:block; margin-bottom:2px;">Nhu cầu:</span> 
-            <span style="font-weight: 500;">${escapeHtml(need) || 'Chưa ghi chú'}</span>
-          </div>
-        </div>
-        <div class="class-card-footer" style="padding:12px; display:flex; gap:8px;">
-          ${phone ? `<a class="btn-zalo" style="flex:1; text-align:center;" href="https://zalo.me/${phoneClean}" target="_blank">💬 Nhắn</a>` : '<div style="flex:1;"></div>'}
-          
-          ${status === 'Đang chăm sóc' ? `
-            <button class="btn-primary" style="flex:1;" onclick="convertLead('${phoneClean}')">✅ Chốt</button>
-            <button class="btn-cancel" style="padding: 0 10px;" onclick="cancelLead('${phoneClean}')">❌ Hủy</button>
-          ` : '<div style="flex:1;"></div>'}
-        </div>
-      </div>
+        </td>
+        <td style="color:var(--text-secondary);">${l.staff}</td>
+        <td style="color:var(--text-muted); max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${l.note}</td>
+        <td>${l.rev}${revExt}</td>
+        <td>${l.lastContact}</td>
+        <td style="color:#fbbf24;">${l.date}</td>
+        <td style="text-align:center;">
+          <button style="background:none; border:none; cursor:pointer; color:var(--text-secondary); margin:0 4px;">✏️</button>
+          <button style="background:none; border:none; cursor:pointer; color:var(--green); margin:0 4px;">📝</button>
+          <button style="background:none; border:none; cursor:pointer; color:var(--red); margin:0 4px;">🗑️</button>
+        </td>
+      </tr>
     `;
   }).join('');
+  
+  document.getElementById('crmPageInfo').textContent = `Hiển thị 1-${filtered.length} trong tổng ${filtered.length} khách hàng`;
 }
 
 // ===== ADD LEAD MODAL =====

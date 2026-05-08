@@ -263,31 +263,107 @@
       </div>
     </section>
 
-    <!-- ================== VIEW: LEADS ================== -->
+    <!-- ================== VIEW: LEADS (CRM) ================== -->
     <section class="view" id="viewLeads">
-      <div class="view-header">
+      <div class="view-header" style="margin-bottom:16px;">
         <div>
-          <h2>🤝 Khách Tiềm Năng</h2>
-          <p class="view-subtitle">Quản lý danh sách khách hàng đang tư vấn và chờ xếp lớp</p>
-        </div>
-        <div class="header-actions">
-          <button class="btn-primary" onclick="openAddLeadModal()">+ Thêm Khách Mới</button>
+          <h2 style="display:flex; align-items:center; gap:10px;">Hệ thống CRM <span style="font-size:11px; color:var(--text-muted); font-weight:400;">(Version 7.0)</span></h2>
         </div>
       </div>
-      <div class="table-filters" style="margin-bottom: 16px; display:flex; gap:16px;">
-        <select id="filterLeadStatus" onchange="renderLeadsList()" style="padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--bg-card); color:var(--text-primary);">
-          <option value="Đang chăm sóc">⏳ Đang chăm sóc</option>
-          <option value="Đã chốt">✅ Đã chốt</option>
-          <option value="Hủy">❌ Hủy</option>
-          <option value="">Tất cả trạng thái</option>
-        </select>
-        <div class="search-box" style="margin-left:auto;">
+      
+      <!-- Pipeline Tracker -->
+      <div class="crm-pipeline" style="display:flex; background:var(--bg-card); border-radius:30px; border:1px solid var(--border); margin-bottom:16px; font-size:12px; overflow-x:auto;">
+        <div class="pipe-stage active" style="padding:10px 24px 10px 16px; background:var(--blue); color:#fff; clip-path: polygon(0% 0%, calc(100% - 12px) 0%, 100% 50%, calc(100% - 12px) 100%, 0% 100%); display:flex; gap:6px; align-items:center; cursor:pointer;">
+          <span style="font-weight:600;">🗂️ Tất cả</span> <span class="pipe-badge" style="background:#fff; color:var(--blue); padding:2px 8px; border-radius:12px; font-weight:700;">14</span>
+        </div>
+        <div class="pipe-stage" style="padding:10px 24px 10px 20px; background:transparent; color:var(--text-secondary); clip-path: polygon(0% 0%, calc(100% - 12px) 0%, 100% 50%, calc(100% - 12px) 100%, 0% 100%, 12px 50%); margin-left:-12px; display:flex; gap:6px; align-items:center; cursor:pointer;">
+          Khách hàng mới <span class="pipe-badge" style="background:var(--bg-input); color:var(--text-primary); padding:2px 8px; border-radius:12px; font-weight:700;">2</span>
+        </div>
+        <div class="pipe-stage" style="padding:10px 24px 10px 20px; background:transparent; color:var(--text-secondary); clip-path: polygon(0% 0%, calc(100% - 12px) 0%, 100% 50%, calc(100% - 12px) 100%, 0% 100%, 12px 50%); margin-left:-12px; display:flex; gap:6px; align-items:center; cursor:pointer;">
+          Đã gửi thông tin <span class="pipe-badge" style="background:var(--bg-input); color:var(--text-primary); padding:2px 8px; border-radius:12px; font-weight:700;">4</span>
+        </div>
+        <div class="pipe-stage" style="padding:10px 24px 10px 20px; background:transparent; color:var(--text-secondary); clip-path: polygon(0% 0%, calc(100% - 12px) 0%, 100% 50%, calc(100% - 12px) 100%, 0% 100%, 12px 50%); margin-left:-12px; display:flex; gap:6px; align-items:center; cursor:pointer;">
+          Đang thuyết phục <span class="pipe-badge" style="background:var(--bg-input); color:var(--text-primary); padding:2px 8px; border-radius:12px; font-weight:700;">2</span>
+        </div>
+        <div class="pipe-stage" style="padding:10px 24px 10px 20px; background:transparent; color:var(--text-secondary); clip-path: polygon(0% 0%, calc(100% - 12px) 0%, 100% 50%, calc(100% - 12px) 100%, 0% 100%, 12px 50%); margin-left:-12px; display:flex; gap:6px; align-items:center; cursor:pointer;">
+          Đã gửi báo giá <span class="pipe-badge" style="background:var(--bg-input); color:var(--text-primary); padding:2px 8px; border-radius:12px; font-weight:700;">3</span>
+        </div>
+        <div class="pipe-stage" style="padding:10px 24px 10px 20px; background:var(--green-bg); color:var(--green); clip-path: polygon(0% 0%, calc(100% - 12px) 0%, 100% 50%, calc(100% - 12px) 100%, 0% 100%, 12px 50%); margin-left:-12px; display:flex; gap:6px; align-items:center; cursor:pointer;">
+          Đã chốt <span class="pipe-badge" style="background:var(--green); color:#fff; padding:2px 8px; border-radius:12px; font-weight:700;">3</span>
+        </div>
+        <div class="pipe-stage" style="padding:10px 24px 10px 20px; background:var(--red-bg); color:var(--red); clip-path: polygon(0% 0%, calc(100% - 12px) 0%, 100% 50%, calc(100% - 12px) 100%, 0% 100%, 12px 50%); margin-left:-12px; display:flex; gap:6px; align-items:center; cursor:pointer;">
+          Không quan tâm <span class="pipe-badge" style="background:var(--red); color:#fff; padding:2px 8px; border-radius:12px; font-weight:700;">0</span>
+        </div>
+      </div>
+
+      <!-- Filter Bar -->
+      <div class="table-filters" style="display:flex; gap:10px; align-items:center; background:var(--bg-card); padding:10px 14px; border-radius:var(--radius-sm); border:1px solid var(--border); margin-bottom:16px; flex-wrap:wrap;">
+        <button class="btn-settings" style="width:auto; margin:0; padding:6px 12px; background:transparent;">👁️ Ẩn cột</button>
+        <div class="search-box" style="margin:0; width:180px;">
           <span>🔍</span>
-          <input type="text" id="searchLeads" placeholder="Tìm SĐT hoặc Tên..." oninput="renderLeadsList()">
+          <input type="text" id="searchLeads" placeholder="Tìm kiếm từ khoá..." oninput="renderLeadsList()">
         </div>
+        <select id="filterLeadStaff" style="padding:6px 10px;">
+          <option value="">Tất cả nhân viên</option>
+          <option value="Administrator">Administrator</option>
+          <option value="Nhân viên 1">Nhân viên 1</option>
+          <option value="Nhân viên 2">Nhân viên 2</option>
+        </select>
+        <select id="filterLeadRegion" style="padding:6px 10px;">
+          <option value="">Tất cả khu vực</option>
+          <option value="Hà Nội">Hà Nội</option>
+          <option value="Đà Lạt">Đà Lạt</option>
+          <option value="Thanh Hoá">Thanh Hoá</option>
+        </select>
+        <select id="filterLeadMonth" style="padding:6px 10px;">
+          <option value="">Tháng này</option>
+        </select>
+        <button class="btn-refresh" style="width:auto; padding:6px 12px; margin:0;" onclick="renderLeadsList()">🔄</button>
+        
+        <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-secondary); margin-left:auto;">
+          <input type="checkbox" id="filterNeedCare"> Cần chăm
+          <input type="number" value="2" style="width:40px; padding:4px; text-align:center; background:var(--bg-input); border:1px solid var(--border); color:#fff; border-radius:4px; outline:none;"> ngày tới
+        </label>
+        
+        <button class="btn-primary" onclick="openAddLeadModal()" style="background:var(--green);">+ Thêm Khách</button>
       </div>
-      <div class="class-grid" id="leadsGrid">
-        <!-- Leads rendered by JS -->
+
+      <!-- Data Table -->
+      <div class="table-responsive" style="background:var(--bg-card); border-radius:var(--radius-sm); border:1px solid var(--border);">
+        <table class="data-table crm-table" style="width:100%; text-align:left; font-size:12px; min-width: 1000px;">
+          <thead style="background:var(--bg-input);">
+            <tr>
+              <th style="padding:10px; cursor:pointer;">ID ↕</th>
+              <th style="cursor:pointer;">Ngày tạo ↕</th>
+              <th style="cursor:pointer;">Tên ↕</th>
+              <th style="cursor:pointer;">Điện thoại ↕</th>
+              <th style="cursor:pointer;">Nguồn ↕</th>
+              <th style="cursor:pointer;">Khu vực ↕</th>
+              <th style="cursor:pointer;">Trạng thái ↕</th>
+              <th style="cursor:pointer;">Phụ trách ↕</th>
+              <th style="cursor:pointer;">Ghi chú ↕</th>
+              <th style="cursor:pointer;">Doanh thu ↕</th>
+              <th style="cursor:pointer;">LH gần nhất ↕</th>
+              <th style="cursor:pointer;">Ngày hẹn ↕</th>
+              <th style="text-align:center;">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="leadsGridBody">
+            <!-- Leads rendered by JS -->
+          </tbody>
+        </table>
+        
+        <!-- Pagination Footer -->
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-top:1px solid var(--border); font-size:12px; color:var(--text-muted);">
+          <div id="crmPageInfo">Hiển thị 1-10 trong tổng 14 khách hàng</div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span>Số dòng/trang:</span>
+            <select style="padding:4px 8px; width:auto;"><option>10</option><option>20</option><option>50</option></select>
+            <button class="btn-settings" style="margin:0; width:auto; padding:4px 10px; border-radius:12px;">&lt; Trước</button>
+            <span>Trang 1 / 2</span>
+            <button class="btn-settings" style="margin:0; width:auto; padding:4px 10px; border-radius:12px; background:var(--text-secondary); color:var(--bg-dark); font-weight:600;">Sau &gt;</button>
+          </div>
+        </div>
       </div>
     </section>
 

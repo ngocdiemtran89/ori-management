@@ -600,6 +600,26 @@ select:focus {
   color: var(--text-muted);
 }
 
+/* === CRM PIPELINE === */
+.crm-pipeline::-webkit-scrollbar {
+  height: 4px;
+}
+.pipe-stage {
+  transition: all var(--transition);
+  user-select: none;
+}
+.pipe-stage:hover {
+  filter: brightness(1.1);
+}
+.pipe-stage.active {
+  background: var(--blue) !important;
+  color: #fff !important;
+}
+.pipe-stage.active .pipe-badge {
+  background: #fff !important;
+  color: var(--blue) !important;
+}
+
 /* === EMPTY STATE === */
 .empty-state {
   text-align: center;
