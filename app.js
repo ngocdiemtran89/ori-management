@@ -962,6 +962,25 @@ function renderQuickAttendance() {
   
   const debtStudents = data.hocPhi.filter(hp => parseNum(hp['Còn nợ'] || hp['Con no']) > 0).length;
   const totalDebtAmount = data.hocPhi.reduce((s, hp) => s + parseNum(hp['Còn nợ'] || hp['Con no']), 0);
+  
+  // Leads đang chăm sóc
+  const activeLeadsCount = (data.choHoc || []).filter(l => (l['Trạng thái'] || l['Trang thai']) === 'Đang chăm sóc').length;
+  
+  // Doanh thu tháng này
+  const now = new Date();
+  const thisMonth = now.getMonth();
+  const thisYear = now.getFullYear();
+  let monthRevenue = 0;
+  (data.giaoDich || []).forEach(gd => {
+    const amount = parseNum(gd['Số tiền'] || gd['So tien']);
+    if (amount <= 0) return;
+    const dateStr = gd['Thời gian'] || gd['Thoi gian'] || '';
+    // Try parse dd/MM/yyyy format
+    const parts = String(dateStr).match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    if (parts && parseInt(parts[2]) - 1 === thisMonth && parseInt(parts[3]) === thisYear) {
+      monthRevenue += amount;
+    }
+  });
 
   if (homeStats) {
     homeStats.innerHTML = `
@@ -973,6 +992,10 @@ function renderQuickAttendance() {
         <div class="stat-value">${data.hocVien.length}</div>
         <div class="stat-label">Tổng học viên</div>
       </div>
+      <div class="stat-card" style="border-top-color: var(--blue, #4f9cf7);">
+        <div class="stat-value" style="color: var(--blue, #4f9cf7);">${activeLeadsCount}</div>
+        <div class="stat-label">Khách đang chăm sóc</div>
+      </div>
       <div class="stat-card orange">
         <div class="stat-value">${debtStudents}</div>
         <div class="stat-label">HV nợ học phí</div>
@@ -980,6 +1003,10 @@ function renderQuickAttendance() {
       <div class="stat-card red">
         <div class="stat-value">${formatVND(totalDebtAmount)}</div>
         <div class="stat-label">Tổng số tiền nợ</div>
+      </div>
+      <div class="stat-card" style="border-top-color: var(--green, #4ade80);">
+        <div class="stat-value" style="color: var(--green, #4ade80);">${formatVND(monthRevenue)}</div>
+        <div class="stat-label">Thu tháng ${thisMonth + 1}</div>
       </div>
     `;
   }
