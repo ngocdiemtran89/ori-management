@@ -1,14 +1,30 @@
 // ==========================================
 // ORI ACADEMY - CRM & STUDENT MANAGEMENT
 // ==========================================
-// Version: v5 - Sửa lỗi bot gửi lặp vô hạn
+// Version: v6 - Bảo mật token + Nâng cấp bot
 // ==========================================
 
 // =====================
-// CẤU HÌNH BOT
+// CẤU HÌNH BOT (Bảo mật — lưu trong PropertiesService)
 // =====================
-const TELEGRAM_BOT_TOKEN = "8787082327:AAHanlCOSCeeMU4Q_JtIf1bY1d8dISO65tk";
-const CHAT_ID = "-5238009332";
+// ⚠️ KHÔNG hardcode token ở đây! Chạy setupBotCredentials() 1 lần để lưu.
+function getBotToken() {
+  return PropertiesService.getScriptProperties().getProperty("TELEGRAM_BOT_TOKEN") || "";
+}
+function getChatId() {
+  return PropertiesService.getScriptProperties().getProperty("CHAT_ID") || "";
+}
+// Chạy HÀM NÀY 1 LẦN DUY NHẤT để lưu token an toàn
+function setupBotCredentials() {
+  PropertiesService.getScriptProperties().setProperties({
+    "TELEGRAM_BOT_TOKEN": "8787082327:AAHanlCOSCeeMU4Q_JtIf1bY1d8dISO65tk",
+    "CHAT_ID": "-5238009332"
+  });
+  Logger.log("✅ Bot credentials đã lưu an toàn trong PropertiesService.");
+  // SAU KHI CHẠY XONG → xóa token trong hàm này → commit lại
+}
+const TELEGRAM_BOT_TOKEN = getBotToken();
+const CHAT_ID = getChatId();
 
 // =====================
 // SETUP DATABASE
@@ -286,131 +302,164 @@ function CALCULATE_NEXT_DUE_DATE(registrationDate) {
 }
 
 // =====================
-// TELEGRAM DAILY ALERT
+// TELEGRAM DAILY ALERT — V6 ENHANCED
 // =====================
 function dailyTelegramAlert() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const tz = Session.getScriptTimeZone();
   const today = new Date();
-  const todayDayMonth = Utilities.formatDate(today, Session.getScriptTimeZone(), "dd/MM");
+  const todayDayMonth = Utilities.formatDate(today, tz, "dd/MM");
   const todayMidnight = getMidnight(today);
+  const dayNames = ["Chủ nhật","Thứ Hai","Thứ Ba","Thứ Tư","Thứ Năm","Thứ Sáu","Thứ Bảy"];
+  const dayName = dayNames[today.getDay()];
+  const dateStr = Utilities.formatDate(today, tz, "dd/MM/yyyy");
 
   const sheetHocVien = ss.getSheetByName("HocVien");
   if (!sheetHocVien) return;
   const hvHeaders = sheetHocVien.getRange(1, 1, 1, sheetHocVien.getLastColumn()).getValues()[0];
   const dataHocVien = sheetHocVien.getDataRange().getValues();
-  let birthdayList = [];
+  const totalHV = Math.max(0, dataHocVien.length - 1);
+  let hvNameMap = {};
+  for (let i = 1; i < dataHocVien.length; i++) {
+    hvNameMap[String(dataHocVien[i][hvHeaders.indexOf("Mã HV")] || "")] = {
+      name: dataHocVien[i][hvHeaders.indexOf("Họ Tên")] || "N/A",
+      phone: dataHocVien[i][hvHeaders.indexOf("SĐT")] || "N/A"
+    };
+  }
 
+  // 1. SINH NHẬT
+  let birthdayList = [];
   for (let i = 1; i < dataHocVien.length; i++) {
     const dobDate = safeParseDate(dataHocVien[i][hvHeaders.indexOf("Ngày sinh")]);
-    if (dobDate && Utilities.formatDate(dobDate, Session.getScriptTimeZone(), "dd/MM") === todayDayMonth) {
+    if (dobDate && Utilities.formatDate(dobDate, tz, "dd/MM") === todayDayMonth) {
       const phanLoai = dataHocVien[i][hvHeaders.indexOf("Phân loại")] ? " [" + dataHocVien[i][hvHeaders.indexOf("Phân loại")] + "]" : "";
-      birthdayList.push("🎂 " + dataHocVien[i][hvHeaders.indexOf("Mã HV")] + " - " + dataHocVien[i][hvHeaders.indexOf("Họ Tên")] + phanLoai + " (" + dataHocVien[i][hvHeaders.indexOf("SĐT")] + ")");
+      birthdayList.push("🎂 " + dataHocVien[i][hvHeaders.indexOf("Họ Tên")] + phanLoai + " (" + dataHocVien[i][hvHeaders.indexOf("SĐT")] + ")");
     }
   }
 
+  // 2. HỌC PHÍ QUÁ HẠN
   const sheetHocPhi = ss.getSheetByName("HocPhi");
-  let debtList = [];
-  if (sheetHocPhi) {
+  let debtList = [], totalDebt = 0;
+  if (sheetHocPhi && sheetHocPhi.getLastRow() > 1) {
     const dataHocPhi = sheetHocPhi.getDataRange().getValues();
     for (let i = 1; i < dataHocPhi.length; i++) {
       const debtAmount = parseFloat(dataHocPhi[i][6]);
-      if (isNaN(debtAmount) || debtAmount <= 0) continue;
-      const dueDateMidnight = getMidnight(safeParseDate(dataHocPhi[i][7]));
-      if (dueDateMidnight && dueDateMidnight.getTime() <= todayMidnight.getTime()) {
-        debtList.push("🚨 " + dataHocPhi[i][1] + " (Lớp: " + dataHocPhi[i][2] + ") | Nợ: " + debtAmount.toLocaleString('vi-VN') + "đ | Hạn: " + Utilities.formatDate(dueDateMidnight, Session.getScriptTimeZone(), "dd/MM/yyyy"));
+      if (!isNaN(debtAmount) && debtAmount > 0) {
+        totalDebt += debtAmount;
+        const dueDateMidnight = getMidnight(safeParseDate(dataHocPhi[i][7]));
+        if (dueDateMidnight && dueDateMidnight.getTime() <= todayMidnight.getTime()) {
+          const hvInfo = hvNameMap[String(dataHocPhi[i][1])] || {name: dataHocPhi[i][1], phone: ""};
+          debtList.push("🚨 " + hvInfo.name + " | Nợ: " + debtAmount.toLocaleString('vi-VN') + "đ");
+        }
       }
     }
   }
 
+  // 3. KHÁCH CHỜ + FOLLOW-UP
   const sheetChoHoc = ss.getSheetByName("ChoHoc");
-  let waitlistAlerts = [];
-  if (sheetChoHoc) {
+  let waitlistAlerts = [], followUpAlerts = [];
+  let chotCount = 0, totalLeads = 0;
+  if (sheetChoHoc && sheetChoHoc.getLastRow() > 1) {
+    const choHeaders = sheetChoHoc.getRange(1, 1, 1, sheetChoHoc.getLastColumn()).getValues()[0];
     const dataChoHoc = sheetChoHoc.getDataRange().getValues();
+    const threeDaysAgo = new Date(today.getTime() - 3 * 86400000);
     for (let i = 1; i < dataChoHoc.length; i++) {
-      if (dataChoHoc[i][7] !== "Đang chăm sóc") continue;
-      const ngayHocMidnight = getMidnight(safeParseDate(dataChoHoc[i][5]));
-      if (ngayHocMidnight && ngayHocMidnight.getTime() <= todayMidnight.getTime()) {
-        waitlistAlerts.push("📞 Khách: " + dataChoHoc[i][1] + " (" + dataChoHoc[i][2] + ") | Nhu cầu: " + dataChoHoc[i][3] + " | Hẹn: " + Utilities.formatDate(ngayHocMidnight, Session.getScriptTimeZone(), "dd/MM/yyyy"));
+      totalLeads++;
+      const tt = String(dataChoHoc[i][choHeaders.indexOf("Trạng thái")] || "");
+      if (tt === "Đã chốt") chotCount++;
+      if (tt === "Đang chăm sóc") {
+        const ngay = getMidnight(safeParseDate(dataChoHoc[i][choHeaders.indexOf("Ngày muốn học")]));
+        if (ngay && ngay.getTime() <= todayMidnight.getTime()) {
+          waitlistAlerts.push("📞 " + dataChoHoc[i][choHeaders.indexOf("Họ Tên")] + " (" + dataChoHoc[i][choHeaders.indexOf("SĐT")] + ") | " + (dataChoHoc[i][choHeaders.indexOf("Nhu cầu")] || ""));
+        }
+        if (ngay && ngay.getTime() <= threeDaysAgo.getTime()) {
+          const days = Math.floor((todayMidnight.getTime() - ngay.getTime()) / 86400000);
+          followUpAlerts.push("⏰ " + dataChoHoc[i][choHeaders.indexOf("Họ Tên")] + " (" + dataChoHoc[i][choHeaders.indexOf("SĐT")] + ") — " + days + " ngày chưa follow-up");
+        }
       }
     }
   }
 
-  const sheetDiemDanh = ss.getSheetByName("DiemDanh");
+  // 4. LỚP ĐANG MỞ
   const sheetLopHoc = ss.getSheetByName("LopHoc");
-  let absentAlerts = [];
-  
-  if (sheetDiemDanh && sheetLopHoc) {
+  let classesToday = [], activeClassCount = 0;
+  if (sheetLopHoc && sheetLopHoc.getLastRow() > 1) {
     const lopData = sheetLopHoc.getDataRange().getValues();
-    const headersLop = lopData[0];
-    const maLopCol = headersLop.indexOf("Mã Lớp") !== -1 ? headersLop.indexOf("Mã Lớp") : headersLop.indexOf("Ma Lop");
-    const statusLopCol = headersLop.indexOf("Trạng thái") !== -1 ? headersLop.indexOf("Trạng thái") : headersLop.indexOf("Trang thai");
-    
+    const hL = lopData[0];
+    const maLopCol = hL.indexOf("Mã Lớp") !== -1 ? hL.indexOf("Mã Lớp") : hL.indexOf("Ma Lop");
+    const statusLopCol = hL.indexOf("Trạng thái") !== -1 ? hL.indexOf("Trạng thái") : hL.indexOf("Trang thai");
+    const gvCol = hL.indexOf("Giáo Viên") !== -1 ? hL.indexOf("Giáo Viên") : -1;
+    for (let i = 1; i < lopData.length; i++) {
+      const st = String(lopData[i][statusLopCol] || "").toLowerCase();
+      if (!st.includes("kết thúc") && !st.includes("xong") && !st.includes("hủy")) {
+        activeClassCount++;
+        const gv = gvCol >= 0 ? String(lopData[i][gvCol] || "") : "";
+        classesToday.push("📚 " + lopData[i][maLopCol] + (gv ? " (GV: " + gv + ")" : ""));
+      }
+    }
+  }
+
+  // 5. HV VẮNG NHIỀU
+  const sheetDiemDanh = ss.getSheetByName("DiemDanh");
+  let absentAlerts = [];
+  if (sheetDiemDanh && sheetLopHoc && sheetDiemDanh.getLastRow() > 1) {
+    const lopData = sheetLopHoc.getDataRange().getValues();
+    const hL = lopData[0];
+    const maLopCol = hL.indexOf("Mã Lớp") !== -1 ? hL.indexOf("Mã Lớp") : hL.indexOf("Ma Lop");
+    const statusLopCol = hL.indexOf("Trạng thái") !== -1 ? hL.indexOf("Trạng thái") : hL.indexOf("Trang thai");
     let activeClasses = {};
     for (let i = 1; i < lopData.length; i++) {
-       const st = String(lopData[i][statusLopCol] || "").toLowerCase();
-       if (!st.includes("kết thúc") && !st.includes("xong")) {
-         activeClasses[String(lopData[i][maLopCol])] = true;
-       }
+      const st = String(lopData[i][statusLopCol] || "").toLowerCase();
+      if (!st.includes("kết thúc") && !st.includes("xong")) activeClasses[String(lopData[i][maLopCol])] = true;
     }
-    
     const ddData = sheetDiemDanh.getDataRange().getValues();
-    const headersDD = ddData[0];
-    const maHVDDIdx = headersDD.indexOf("Mã HV") !== -1 ? headersDD.indexOf("Mã HV") : headersDD.indexOf("Ma HV");
-    const maLopDDIdx = headersDD.indexOf("Mã Lớp") !== -1 ? headersDD.indexOf("Mã Lớp") : headersDD.indexOf("Ma Lop");
-    const stDDIdx = headersDD.indexOf("Trạng thái") !== -1 ? headersDD.indexOf("Trạng thái") : headersDD.indexOf("Trang thai");
-    const ngayDDIdx = headersDD.indexOf("Ngày") !== -1 ? headersDD.indexOf("Ngày") : headersDD.indexOf("Ngay");
-    
-    let absentMap = {}; 
+    const hD = ddData[0];
+    const maHVi = hD.indexOf("Mã HV") !== -1 ? hD.indexOf("Mã HV") : hD.indexOf("Ma HV");
+    const maLi = hD.indexOf("Mã Lớp") !== -1 ? hD.indexOf("Mã Lớp") : hD.indexOf("Ma Lop");
+    const stI = hD.indexOf("Trạng thái") !== -1 ? hD.indexOf("Trạng thái") : hD.indexOf("Trang thai");
+    const ngI = hD.indexOf("Ngày") !== -1 ? hD.indexOf("Ngày") : hD.indexOf("Ngay");
+    let absentMap = {};
     for (let i = 1; i < ddData.length; i++) {
-        const mLop = String(ddData[i][maLopDDIdx] || "");
-        if (!activeClasses[mLop]) continue;
-        
-        const mHV = String(ddData[i][maHVDDIdx] || "");
-        const st = String(ddData[i][stDDIdx] || "").toLowerCase();
-        const dateStr = String(ddData[i][ngayDDIdx] || "");
-        
-        const key = mLop + "_" + mHV;
-        if (!absentMap[key]) {
-            absentMap[key] = { count: 0, lastDate: "", maHV: mHV, maLop: mLop };
-        }
-        
-        if (st.includes("vắng") || st.includes("vang")) {
-            absentMap[key].count++;
-            absentMap[key].lastDate = dateStr; 
-        }
+      const mLop = String(ddData[i][maLi] || "");
+      if (!activeClasses[mLop]) continue;
+      const mHV = String(ddData[i][maHVi] || "");
+      const st = String(ddData[i][stI] || "").toLowerCase();
+      const key = mLop + "_" + mHV;
+      if (!absentMap[key]) absentMap[key] = { count: 0, lastDate: "", maHV: mHV, maLop: mLop };
+      if (st.includes("vắng") || st.includes("vang")) { absentMap[key].count++; absentMap[key].lastDate = String(ddData[i][ngI] || ""); }
     }
-    
-    let bufferDate = new Date(today.getTime());
-    bufferDate.setDate(today.getDate() - 3); // Cảnh báo nếu buổi nghỉ rơi vào 3 ngày vừa qua (để an toàn qua cuối tuần)
-    
-    let hvNameMap = {};
-    for (let i = 1; i < dataHocVien.length; i++) {
-       hvNameMap[String(dataHocVien[i][hvHeaders.indexOf("Mã HV")] || "")] = {
-         name: dataHocVien[i][hvHeaders.indexOf("Họ Tên")] || "N/A",
-         phone: dataHocVien[i][hvHeaders.indexOf("SĐT")] || "N/A"
-       };
-    }
-    
+    let bufferDate = new Date(today.getTime()); bufferDate.setDate(today.getDate() - 3);
     Object.keys(absentMap).forEach(key => {
-        const item = absentMap[key];
-        if (item.count >= 2) {
-             let lastDateObj = safeParseDate(item.lastDate);
-             if (lastDateObj && lastDateObj.getTime() >= bufferDate.getTime()) {
-                  const hvInfo = hvNameMap[item.maHV] || {name: item.maHV, phone: ""};
-                  absentAlerts.push("⚠️ " + hvInfo.name + " (" + hvInfo.phone + ") | Lớp: " + item.maLop + " | Vắng: " + item.count + " buổi");
-             }
+      const item = absentMap[key];
+      if (item.count >= 2) {
+        let ld = safeParseDate(item.lastDate);
+        if (ld && ld.getTime() >= bufferDate.getTime()) {
+          const hvInfo = hvNameMap[item.maHV] || {name: item.maHV, phone: ""};
+          absentAlerts.push("⚠️ " + hvInfo.name + " | Lớp: " + item.maLop + " | Vắng: " + item.count + " buổi");
         }
+      }
     });
   }
 
-  if (birthdayList.length > 0 || debtList.length > 0 || waitlistAlerts.length > 0 || absentAlerts.length > 0) {
-    let message = "🔔 *BÁO CÁO HẰNG NGÀY ORI ACADEMY*\n\n";
-    if (birthdayList.length > 0) message += "🎈 *SINH NHẬT HỌC VIÊN:*\n" + birthdayList.join("\n") + "\n\n";
-    if (debtList.length > 0) message += "💰 *HỌC PHÍ TỚI HẠN/QUÁ HẠN:*\n" + debtList.join("\n") + "\n\n";
-    if (waitlistAlerts.length > 0) message += "🔥 *KHÁCH CHỜ HỌC ĐẾN HẠN:*\n" + waitlistAlerts.join("\n") + "\n\n";
-    if (absentAlerts.length > 0) message += "❌ *HỌC VIÊN NGHỈ NHIỀU (>=2 BUỔI):*\n" + absentAlerts.join("\n") + "\n\n";
-    sendToTelegram(message);
+  // BUILD MESSAGE
+  let message = "🔔 *BÁO CÁO " + dayName.toUpperCase() + " — " + dateStr + "*\n";
+  message += "━━━━━━━━━━━━━━━━\n\n";
+  message += "📊 *TỔNG QUAN:*\n";
+  message += "👥 HV: *" + totalHV + "* | Lớp mở: *" + activeClassCount + "*\n";
+  message += "📋 Leads: *" + totalLeads + "* (Chốt: " + chotCount + ")\n";
+  if (totalDebt > 0) message += "💸 Tổng nợ: *" + totalDebt.toLocaleString('vi-VN') + "đ*\n";
+  message += "\n";
+  if (classesToday.length > 0) message += "📅 *LỚP ĐANG MỞ (" + classesToday.length + "):*\n" + classesToday.join("\n") + "\n\n";
+  if (birthdayList.length > 0) message += "🎈 *SINH NHẬT:*\n" + birthdayList.join("\n") + "\n\n";
+  if (debtList.length > 0) message += "💰 *NỢ QUÁ HẠN (" + debtList.length + "):*\n" + debtList.join("\n") + "\n\n";
+  if (waitlistAlerts.length > 0) message += "🔥 *KHÁCH CẦN GỌI (" + waitlistAlerts.length + "):*\n" + waitlistAlerts.join("\n") + "\n\n";
+  if (followUpAlerts.length > 0) message += "⏰ *NHẮC FOLLOW-UP:*\n" + followUpAlerts.join("\n") + "\n\n";
+  if (absentAlerts.length > 0) message += "❌ *HV NGHỈ NHIỀU:*\n" + absentAlerts.join("\n") + "\n\n";
+  if (debtList.length === 0 && waitlistAlerts.length === 0 && followUpAlerts.length === 0 && absentAlerts.length === 0) {
+    message += "✅ *Không có cảnh báo — mọi thứ ổn!*\n\n";
   }
+  message += "━━━━━━━━━━━━━━━━\n💡 Gõ /homnay /doanhthu /help";
+  sendToTelegram(message);
 }
 
 // =====================
@@ -541,6 +590,12 @@ function doPost(e) {
       handleHelp(chatId);
     } else if (command === "/baocao") {
       handleBaoCao(chatId);
+    } else if (command === "/homnay") {
+      handleHomNay(chatId);
+    } else if (command === "/doanhthu") {
+      handleDoanhThu(chatId);
+    } else if (command === "/nhacnho") {
+      handleNhacNho(chatId);
     } else if (command === "/debug") {
       sendTelegramTo(chatId, "✅ Bot đang hoạt động!\n📱 Chat ID: `" + chatId + "`\n⏰ " + new Date().toLocaleString("vi-VN"));
     }
@@ -834,12 +889,14 @@ function doGet(e) {
 // =====================
 function handleHelp(chatId) {
   var helpText =
-    "📋 *HƯỚNG DẪN BOT ORI ACADEMY*\n\n" +
-    "🔍 Tìm kiếm: `/timkiem 09xxxxxxxx`\n\n" +
-    "📝 Cập nhật CCCD:\n`/capnhat 09xxx cccd 079204001234`\n\n" +
+    "📋 *HƯỚNG DẪN BOT ORI ACADEMY v6*\n\n" +
+    "📅 Hôm nay: `/homnay`\n" +
+    "💰 Doanh thu tháng: `/doanhthu`\n" +
+    "⏰ Nhắc follow-up: `/nhacnho`\n" +
+    "📊 Báo cáo tổng: `/baocao`\n\n" +
+    "🔍 Tìm HV: `/timkiem 09xxxxxxxx`\n" +
+    "📝 Cập nhật CCCD:\n`/capnhat 09xxx cccd 079204001234`\n" +
     "📝 Cập nhật Email:\n`/capnhat 09xxx email abc@gmail.com`\n\n" +
-    "📝 Cập nhật cả 2:\n`/capnhat 09xxx cccd 079204001234 email abc@gmail.com`\n\n" +
-    "📊 Báo cáo: `/baocao`\n" +
     "🔧 Kiểm tra: `/debug`";
   sendTelegramTo(chatId, helpText);
 }
@@ -1060,3 +1117,119 @@ function removeWebhook() {
 
 function testHelp() { handleHelp(CHAT_ID); }
 function testBaoCao() { handleBaoCao(CHAT_ID); }
+function testHomNay() { handleHomNay(CHAT_ID); }
+function testDoanhThu() { handleDoanhThu(CHAT_ID); }
+
+// =====================
+// NEW COMMANDS V6
+// =====================
+function handleHomNay(chatId) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var today = new Date();
+  var dayNames = ["Chủ nhật","Thứ Hai","Thứ Ba","Thứ Tư","Thứ Năm","Thứ Sáu","Thứ Bảy"];
+  var msg = "📅 *HÔM NAY — " + dayNames[today.getDay()] + " " + Utilities.formatDate(today, Session.getScriptTimeZone(), "dd/MM/yyyy") + "*\n\n";
+
+  // Lớp đang mở
+  var sheetLop = ss.getSheetByName("LopHoc");
+  if (sheetLop && sheetLop.getLastRow() > 1) {
+    var lopData = sheetLop.getDataRange().getValues();
+    var hL = lopData[0];
+    var maLopCol = hL.indexOf("Mã Lớp") !== -1 ? hL.indexOf("Mã Lớp") : hL.indexOf("Ma Lop");
+    var statusCol = hL.indexOf("Trạng thái") !== -1 ? hL.indexOf("Trạng thái") : hL.indexOf("Trang thai");
+    var gvCol = hL.indexOf("Giáo Viên") !== -1 ? hL.indexOf("Giáo Viên") : -1;
+    var classes = [];
+    for (var i = 1; i < lopData.length; i++) {
+      var st = String(lopData[i][statusCol] || "").toLowerCase();
+      if (!st.includes("kết thúc") && !st.includes("xong") && !st.includes("hủy")) {
+        var gv = gvCol >= 0 ? String(lopData[i][gvCol] || "") : "";
+        classes.push("📚 " + lopData[i][maLopCol] + (gv ? " (GV: " + gv + ")" : ""));
+      }
+    }
+    msg += "*Lớp đang mở (" + classes.length + "):*\n" + (classes.length > 0 ? classes.join("\n") : "Không có lớp") + "\n\n";
+  }
+
+  // Khách cần gọi
+  var sheetCH = ss.getSheetByName("ChoHoc");
+  if (sheetCH && sheetCH.getLastRow() > 1) {
+    var chHeaders = sheetCH.getRange(1, 1, 1, sheetCH.getLastColumn()).getValues()[0];
+    var chData = sheetCH.getDataRange().getValues();
+    var todayMidnight = getMidnight(today);
+    var calls = [];
+    for (var i = 1; i < chData.length; i++) {
+      if (String(chData[i][chHeaders.indexOf("Trạng thái")] || "") !== "Đang chăm sóc") continue;
+      var ngay = getMidnight(safeParseDate(chData[i][chHeaders.indexOf("Ngày muốn học")]));
+      if (ngay && ngay.getTime() <= todayMidnight.getTime()) {
+        calls.push("📞 " + chData[i][chHeaders.indexOf("Họ Tên")] + " (" + chData[i][chHeaders.indexOf("SĐT")] + ")");
+      }
+    }
+    if (calls.length > 0) msg += "*Khách cần gọi (" + calls.length + "):*\n" + calls.join("\n") + "\n\n";
+  }
+
+  if (msg.split("\n").length <= 3) msg += "✅ Không có việc cần làm hôm nay!";
+  sendTelegramTo(chatId, msg);
+}
+
+function handleDoanhThu(chatId) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheetGD = ss.getSheetByName("GiaoDich");
+  var today = new Date();
+  var thisMonth = today.getMonth();
+  var thisYear = today.getFullYear();
+
+  var totalMonth = 0, countMonth = 0;
+  var totalAll = 0;
+
+  if (sheetGD && sheetGD.getLastRow() > 1) {
+    var gdData = sheetGD.getDataRange().getValues();
+    var headers = gdData[0];
+    var amountCol = headers.indexOf("Số tiền");
+    var dateCol = headers.indexOf("Thời gian");
+    for (var i = 1; i < gdData.length; i++) {
+      var amount = parseFloat(gdData[i][amountCol]);
+      if (isNaN(amount) || amount <= 0) continue;
+      totalAll += amount;
+      var d = safeParseDate(gdData[i][dateCol]);
+      if (d && d.getMonth() === thisMonth && d.getFullYear() === thisYear) {
+        totalMonth += amount;
+        countMonth++;
+      }
+    }
+  }
+
+  var monthName = "Tháng " + (thisMonth + 1) + "/" + thisYear;
+  var msg = "💰 *DOANH THU — " + monthName + "*\n\n";
+  msg += "📊 Thu tháng này: *" + totalMonth.toLocaleString('vi-VN') + "đ*\n";
+  msg += "🧾 Số giao dịch: *" + countMonth + "*\n";
+  msg += "💵 Tổng tất cả: *" + totalAll.toLocaleString('vi-VN') + "đ*\n";
+  sendTelegramTo(chatId, msg);
+}
+
+function handleNhacNho(chatId) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheetCH = ss.getSheetByName("ChoHoc");
+  var today = new Date();
+  var todayMidnight = getMidnight(today);
+  var threeDaysAgo = new Date(today.getTime() - 3 * 86400000);
+  var alerts = [];
+
+  if (sheetCH && sheetCH.getLastRow() > 1) {
+    var chHeaders = sheetCH.getRange(1, 1, 1, sheetCH.getLastColumn()).getValues()[0];
+    var chData = sheetCH.getDataRange().getValues();
+    for (var i = 1; i < chData.length; i++) {
+      if (String(chData[i][chHeaders.indexOf("Trạng thái")] || "") !== "Đang chăm sóc") continue;
+      var ngay = getMidnight(safeParseDate(chData[i][chHeaders.indexOf("Ngày muốn học")]));
+      if (ngay && ngay.getTime() <= threeDaysAgo.getTime()) {
+        var days = Math.floor((todayMidnight.getTime() - ngay.getTime()) / 86400000);
+        alerts.push("⏰ " + chData[i][chHeaders.indexOf("Họ Tên")] + " (" + chData[i][chHeaders.indexOf("SĐT")] + ") — " + days + " ngày");
+      }
+    }
+  }
+
+  var msg = "⏰ *NHẮC NHỞ FOLLOW-UP*\n\n";
+  if (alerts.length > 0) {
+    msg += "Khách chưa follow-up > 3 ngày:\n" + alerts.join("\n");
+  } else {
+    msg += "✅ Tất cả khách đã được follow-up!";
+  }
+  sendTelegramTo(chatId, msg);
+}
